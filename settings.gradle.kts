@@ -1,4 +1,4 @@
-rootProject.name = "NewsReader"
+rootProject.name = "NotesApp"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

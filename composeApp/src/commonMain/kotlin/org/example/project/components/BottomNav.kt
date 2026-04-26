@@ -8,11 +8,9 @@ import org.example.project.navigation.BottomNavItem
 
 @Composable
 fun BottomNav(navController: NavController) {
-    // Tambahkan News ke dalam daftar menu bawah
     val items = listOf(
         BottomNavItem.Notes,
         BottomNavItem.Favorites,
-        BottomNavItem.News,
         BottomNavItem.Profile
     )
 
