@@ -1,90 +1,86 @@
-# Tugas Praktikum Minggu 6 - Akses Jaringan dan Pengambilan Data API (Ktor)
+# Tugas Praktikum Minggu 7 - Database Offline-first (SQLDelight) & DataStore
 
 * **Nama : Muhammad Bimastiar**
 * **NIM : 123140211**
 
 ## Deskripsi Tugas
+Mengembangkan proyek aplikasi dari minggu sebelumnya dengan melakukan *upgrade* arsitektur menjadi **Offline-first**. Aplikasi tidak lagi menggunakan *dummy state* yang hilang saat ditutup, melainkan menggunakan **SQLDelight** untuk penyimpanan database lokal dan **DataStore (Multiplatform Settings)** untuk preferensi pengguna. Berikut adalah fitur dan ketentuan yang diimplementasikan pada praktikum ini:
 
-Mengembangkan proyek aplikasi dari minggu sebelumnya dengan menambahkan fitur untuk mengambil data dari internet (REST API) menggunakan **Ktor HTTP Client** pada Kotlin Multiplatform. Berikut adalah fitur dan ketentuan yang diimplementasikan pada praktikum ini:
-
-1.  **Konfigurasi Ktor & Serialization:**
-    - Menambahkan *dependency* Ktor dan mendaftarkan *plugin* `kotlinx.serialization` pada Gradle untuk membaca format JSON.
-    - Menambahkan izin akses internet (`android.permission.INTERNET`) pada `AndroidManifest.xml`.
-2.  **Pemodelan Data & Parsing JSON:**
-    - Membuat *data class* `NewsArticle` yang ditandai dengan anotasi `@Serializable` agar JSON dari API dapat diubah menjadi list objek Kotlin.
-3.  **State Management (Loading, Success, Error):**
-    - Mengimplementasikan `sealed class NewsUiState` untuk mengelola tiga kondisi layar: saat mengambil data (*Loading*), saat berhasil (*Success*), dan saat gagal/internet terputus (*Error*).
-4.  **Repository Pattern:**
-    - Membuat `NewsRepository` yang bertugas khusus menembak endpoint API (`https://jsonplaceholder.typicode.com/posts`) dan mengembalikan data *List*.
-5.  **Integrasi ViewModel & UI (Tab News):**
-    - Menggunakan `viewModelScope.launch` pada `NewsViewModel` untuk mengambil data secara *asynchronous* (Coroutines).
-    - Menampilkan data pada `NewsListScreen` menggunakan `LazyColumn` yang diletakkan pada salah satu menu di *Bottom Navigation* (Tab News). Dilengkapi juga dengan tombol *Refresh*.
+1. **Implementasi Database Lokal (SQLDelight):**
+    - Mengganti `StateFlow` dummy dengan database SQLite (melalui SQLDelight) untuk melakukan operasi CRUD (Create, Read, Update, Delete) secara permanen.
+    - Data catatan tidak akan hilang meskipun aplikasi ditutup secara paksa (*force close*).
+2. **Fitur Pencarian Cerdas (Search):**
+    - Menambahkan kolom pencarian (*search bar*) pada layar daftar catatan.
+    - Pencarian berjalan secara *real-time* memfilter data dari database berdasarkan judul atau isi catatan.
+3. **Penyimpanan Profil & Tema Persisten (DataStore):**
+    - Status **Dark Mode**, Nama, dan Bio pengguna pada tab Profile kini disimpan menggunakan Multiplatform Settings (menggantikan DataStore/SharedPreferences murni).
+    - Tema gelap/terang akan otomatis menyesuaikan dengan pilihan terakhir pengguna saat aplikasi dibuka kembali.
+4. **Pemisahan Arsitektur (Repository Pattern):**
+    - Menerapkan *best-practice* pengembangan Android dengan memisahkan logika akses data (Database/Settings) ke dalam layer `Repository` dan `SettingsManager`, sehingga `ViewModel` menjadi lebih bersih.
+5. **Pemulihan Fitur Favorit (Love):**
+    - Menyambungkan kembali fitur tombol "Love" untuk menyimpan status favorit secara permanen ke dalam kolom `is_favorite` di Database SQL, dan menampilkannya di tab Favorites.
 
 ## Struktur Folder
-
-Proyek ini mempertahankan struktur dari tugas minggu sebelumnya dengan penambahan file khusus untuk menangani *networking* dan data berita. Berikut adalah susunan *package* utamanya:
+Proyek ini mengadopsi pemisahan *layer* yang terstruktur (UI, ViewModels, Repository, Database). Berikut adalah susunan *package* utamanya:
 
 ```text
 composeApp/src/commonMain/kotlin/org/example/project/
-├── App.kt                 # Entry point & inisialisasi NavHost/BottomBar
+├── App.kt                 # Entry point, inisialisasi Database, NavHost & Scaffold
 ├── components/
-│   └── BottomNav.kt       # Komponen UI Bottom Navigation (Navigasi antar tab)
+│   └── BottomNav.kt       # Komponen UI untuk Bottom Navigation
 ├── data/
-│   ├── NewsData.kt        # Berisi Model (NewsArticle), State (NewsUiState), & NewsRepository
-│   └── ProfileUiState.kt  # (Dari praktikum sebelumnya)
+│   ├── NotesRepository.kt # Layer penghubung antara ViewModel dan Database
+│   └── SettingsManager.kt # Class pengelola penyimpanan lokal untuk setingan profil
+├── db/
+│   └── Note.sq            # File query SQLDelight untuk generate tabel & fungsi SQLite
 ├── navigation/
-│   └── Routes.kt          # Definisi Rute layar untuk navigasi
+│   └── Routes.kt          # Definisi rute layar dan argument navigasi
 ├── ui/
-│   ├── NewsScreens.kt     # Layar utama berita (NewsListScreen) dan layar detailnya
-│   ├── NotesScreens.kt    # (Dari praktikum sebelumnya)
-│   └── ProfileScreen.kt   # (Dari praktikum sebelumnya)
+│   ├── NotesScreens.kt    # Kumpulan layar Notes (List, Detail, Add, Edit, Favorites)
+│   └── ProfileScreen.kt   # Layar profil pengguna
 └── viewmodel/
-    ├── NewsViewModel.kt   # State holder untuk mengambil data API dan menyimpannya ke UI State
-    └── ProfileViewModel.kt# (Dari praktikum sebelumnya)
+    ├── NotesViewModel.kt  # Logika state, menghubungkan UI dengan NotesRepository
+    └── ProfileViewModel.kt# Mengelola data profil yang di-load dari SettingsManager
 ```
 
 ## Cara Menjalankan Aplikasi (Langkah-langkah)
 
-Proyek ini menggunakan basis **Jetpack Compose Multiplatform**. Berikut panduan untuk menjalankannya:
+Proyek ini menggunakan basis **Jetpack Compose Multiplatform**. Berikut panduannya:
 
-1.  **Persiapan:** Pastikan Anda menggunakan **Android Studio** versi terbaru dan perangkat/emulator **terhubung ke internet**.
-2.  **Buka Proyek:** Pilih menu `File > Open...` dan arahkan ke folder proyek ini.
-3.  **Tunggu Gradle Sync:** Pastikan *dependency* Ktor dan plugin Serialization sudah terunduh dengan melihat indikator sinkronisasi Gradle (atau klik *Sync Now*).
-4.  **Jalankan Aplikasi:** - Untuk **Android**: Pilih emulator atau perangkat fisik Android Anda, lalu klik tombol **Run** (segitiga hijau) atau tekan `Shift + F10`.
-5.  **Uji Coba Fitur:** Setelah jendela aplikasi terbuka:
-    - Gunakan **Bottom Navigation** untuk masuk ke tab **News** (Berita).
-    - Aplikasi akan menampilkan status *Loading* ("Sedang mengambil berita...").
-    - Jika sukses, layar akan menampilkan daftar artikel menggunakan `LazyColumn`.
-    - Coba matikan internet pada emulator/HP Anda, lalu klik **Icon Refresh** di pojok kanan atas. Layar akan berubah menampilkan pesan *Error* "Gagal Memuat 😭".
-    - Klik salah satu *Card* berita untuk masuk ke halaman detail yang menampilkan teks lengkapnya.
+1.  **Persiapan IDE:** Gunakan **Android Studio** versi terbaru. Disarankan untuk menginstal plugin **SQLDelight** agar kode di file `Note.sq` terbaca dengan baik.
+2.  **Buka & Build Proyek:** Buka folder proyek dan tunggu proses sinkronisasi Gradle. **Sangat penting:** Lakukan *Build -> Make Project* (atau klik tombol palu) setidaknya satu kali agar SQLDelight men-*generate* file Kotlin dari `Note.sq`.
+3.  **Jalankan Aplikasi:** - Untuk **Android**: Tekan `Shift + F10` atau klik tombol hijau **Run** ke emulator/perangkat fisik.
+4.  **Uji Coba Fitur:** - Tambahkan catatan baru, lalu matikan/tutup aplikasi dari *Recent Apps*, dan buka kembali. Catatan akan tetap ada (Persistent).
+    - Coba ketikkan sesuatu di kolom *Search* pada layar beranda untuk mencari catatan spesifik.
+    - Ubah mode ke *Dark Mode* di tab Profil, tutup aplikasi, dan buka kembali. Tema gelap akan tetap tersimpan.
+    - Klik ikon hati pada catatan untuk memasukkannya ke tab Favorites.
 
 ## Hasil
 
-### 1\. Tampilan State Success (Daftar Berita)
+### 1. Tampilan Notes & Fitur Pencarian (Search)
+*(Tampilan daftar catatan dari Database SQLDelight dan kolom pencarian real-time)*
 
-*(Aplikasi berhasil mengambil data JSON dari API dan memetakannya ke dalam LazyColumn)*
-
-
-
-### 2\. Tampilan State Loading
-
-*(Indikator putaran saat fungsi asinkron Ktor sedang menunggu respons dari server)*
+![img.png](img.png)
 
 
+### 2. Tampilan Tambah/Edit Catatan
+*(Layar interaktif dengan form input untuk menyimpan/mengupdate data permanen ke Database)*
 
-### 3\. Tampilan State Error
+![img_1.png](img_1.png)
+![img_2.png](img_2.png)
 
-*(Penanganan error saat aplikasi gagal menerjemahkan data atau saat tidak ada koneksi internet)*
+### 3. Tampilan Favorit & Detail Catatan
+*(Catatan yang difavoritkan tersimpan permanen dan dapat dilihat secara detail)*
 
+![img_3.png](img_3.png)
 
+### 4. Tampilan Profile & Dark Mode (Persistent)
+*(Pengaturan profil dan tema yang tidak akan reset saat aplikasi direstart)*
 
-### 4\. Tampilan Detail Berita
+![img_4.png](img_4.png)
+![img_5.png](img_5.png)
 
-*(Navigasi passing argument yang membawa judul dan isi body artikel yang diklik)*
-
-
-
-### 5. Video Demo Aplikasi
-*(Video demonstrasi berjalannya aplikasi, menampilkan proses pengambilan data dari internet, efek loading, dan interaksi navigasi)*
+### 5. Video Demo
+*(Tautan/File Video Demo)*
 
 **Tonton Video Demo:** 
